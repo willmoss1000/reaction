@@ -33,16 +33,7 @@ const wrapComponent = (Comp) => (
     }
 
     isSoldOut = () => {
-      const topVariants = ReactionProduct.getTopVariants(this.props.product._id);
-
-      for (const topVariant of topVariants) {
-        const inventoryQuantity = ReactionProduct.getVariantQuantity(topVariant);
-
-        if (inventoryQuantity > 0) {
-          return false;
-        }
-      }
-      return true;
+      return this.props.product.isSoldOut !== false;
     }
 
     isBackorder = () => {
