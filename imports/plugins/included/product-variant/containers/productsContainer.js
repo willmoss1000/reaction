@@ -166,12 +166,34 @@ function composer(props, onData) {
     window.prerenderReady = true;
   }
 
-  const activeShopsIds = Shops.find({
-    $or: [
-      { "workflow.status": "active" },
-      { _id: Reaction.getPrimaryShopId() }
-    ]
-  }).fetch().map(activeShop => activeShop._id);
+  let shopsCursor;
+
+  if (shopIdOrSlug) {
+    // If we have a shop id or shop slug from the url param "shop/:shopSlug",
+    // then we will filter the products based on the value of that param.
+    shopsCursor = Shops.find({
+      "workflow.status": "active",
+      $or: [{
+        shopId: {
+          $in: [shopIdOrSlug]
+        }
+      }, {
+        slug: {
+          $in: [shopIdOrSlug]
+        }
+      }]
+    });
+  } else {
+    // Otherwise we get products from the primary shop and any active merchant shop.
+    shopsCursor = Shops.find({
+      $or: [
+        { "workflow.status": "active" },
+        { _id: Reaction.getPrimaryShopId() }
+      ]
+    });
+  }
+
+  const activeShopsIds = shopsCursor.fetch().map(activeShop => activeShop._id);
 
   const productCursor = Products.find({
     ancestors: [],
