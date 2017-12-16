@@ -255,7 +255,7 @@ function isSoldOut(variants) {
   return variants.every(variant => {
     // TODO: decide where control of inventoryManagement and inventoryPolicy is controlled for products and variants
     if (variant.inventoryManagement) {
-      return Catalog.getVariantQuantity(variant) <= 0;
+      return Catalog.getVariantQuantity(variant, { ignoreVisibilty: true }) <= 0;
     }
     return false;
   });
@@ -271,7 +271,7 @@ function isSoldOut(variants) {
 function isLowQuantity(variants) {
   return variants.some(variant => {
     // TODO: performance: optimize isSoldOut and isLowQuantity to share variant traversal
-    const quantity = Catalog.getVariantQuantity(variant);
+    const quantity = Catalog.getVariantQuantity(variant, { ignoreVisibilty: true });
     // we need to keep an eye on `inventoryPolicy` too and qty > 0
     if (variant.inventoryManagement && variant.inventoryPolicy && quantity) {
       return quantity <= variant.lowInventoryWarningThreshold;
@@ -289,9 +289,15 @@ function isLowQuantity(variants) {
  * @return {boolean} is backorder allowed or not for a product
  */
 function isBackorder(variants) {
-  return variants.every(variant => {
-    return !variant.inventoryPolicy && variant.inventoryManagement &&
-      variant.inventoryQuantity === 0;
+  return variants.every((variant) => {
+    const options = Catalog.getVariants(variant._id, "variant", { ignoreVisibilty: true });
+    if (options && options.length) {
+      return options.every((option) => {
+        // Inventory management is controlled at the variant level, but inventory policy is controlled at the option level
+        return !option.inventoryPolicy && variant.inventoryManagement;
+      });
+    }
+    return !variant.inventoryPolicy && variant.inventoryManagement;
   });
 }
 

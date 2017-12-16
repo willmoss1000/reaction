@@ -126,7 +126,7 @@ export const ProductRevision = {
         documentId: product._id
       });
 
-      if (revision && revision.documentData.isVisible) {
+      if (revision) {
         variants.push(revision.documentData);
       } else if (!revision && product.isVisible) {
         variants.push(product);
@@ -136,7 +136,16 @@ export const ProductRevision = {
     return variants;
   },
 
-  getVariants(id, type) {
+  /**
+   * gets variants for specified product/variant id
+   * @param  {string} id                       The id of the product to get variants for
+   * @param  {string} [type="variant"]         The product type to find
+   * @param  {object} [options={}]             Optional options object
+   * @param  {boolean} options.ignoreVisibilty With a true ignoreVisibility flag getVariants will find all variants
+   *  for ancestor of a given Id. If left undefined or false, getVariants will return just the visible variants.
+   * @return {[object]}                        Array of variants
+   */
+  getVariants(id, type = "variant", options = {}) {
     const variants = [];
 
     Products.find({
@@ -148,16 +157,16 @@ export const ProductRevision = {
         documentId: product._id
       });
 
-      if (revision && revision.documentData.isVisible) {
+      if (revision && (revision.documentData.isVisible || options.ignoreVisibilty)) {
         variants.push(revision.documentData);
-      } else if (!revision && product.isVisible) {
+      } else if (!revision && (product.isVisible || options.ignoreVisibilty)) {
         variants.push(product);
       }
     });
     return variants;
   },
-  getVariantQuantity(variant) {
-    const options = this.getVariants(variant._id);
+  getVariantQuantity(variant, opts) {
+    const options = this.getVariants(variant._id, "variant", opts);
     if (options && options.length) {
       return options.reduce((sum, option) =>
         sum + option.inventoryQuantity || 0, 0);
