@@ -42,6 +42,7 @@ function updateVariantProductField(variants, field, value) {
  */
 const toDenormalize = [
   "price",
+  "isVisible",
   "inventoryQuantity",
   "lowInventoryWarningThreshold",
   "inventoryPolicy",
@@ -218,6 +219,7 @@ function denormalize(id, field) {
     case "inventoryPolicy":
     case "inventoryQuantity":
     case "inventoryManagement":
+    case "isVisible":
       Object.assign(update, {
         isSoldOut: isSoldOut(variants),
         isLowQuantity: isLowQuantity(variants),

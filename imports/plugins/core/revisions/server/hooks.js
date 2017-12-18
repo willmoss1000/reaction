@@ -126,7 +126,7 @@ export const ProductRevision = {
         documentId: product._id
       });
 
-      if (revision) {
+      if (revision && revision.documentData.isVisible) {
         variants.push(revision.documentData);
       } else if (!revision && product.isVisible) {
         variants.push(product);
@@ -145,7 +145,7 @@ export const ProductRevision = {
    *  for ancestor of a given Id. If left undefined or false, getVariants will return just the visible variants.
    * @return {[object]}                        Array of variants
    */
-  getVariants(id, type = "variant", options = {}) {
+  getVariants(id, type = "variant") {
     const variants = [];
 
     Products.find({
@@ -157,16 +157,16 @@ export const ProductRevision = {
         documentId: product._id
       });
 
-      if (revision && (revision.documentData.isVisible || options.ignoreVisibilty)) {
+      if (revision && revision.documentData.isVisible) {
         variants.push(revision.documentData);
-      } else if (!revision && (product.isVisible || options.ignoreVisibilty)) {
+      } else if (!revision && product.isVisible) {
         variants.push(product);
       }
     });
     return variants;
   },
-  getVariantQuantity(variant, opts) {
-    const options = this.getVariants(variant._id, "variant", opts);
+  getVariantQuantity(variant) {
+    const options = this.getVariants(variant._id);
     if (options && options.length) {
       return options.reduce((sum, option) =>
         sum + option.inventoryQuantity || 0, 0);
