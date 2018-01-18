@@ -483,10 +483,12 @@ export default {
   },
 
   setShopId(id) {
-    if (id) {
-      this.shopId = id;
-      this.setUserPreferences("reaction", "activeShopId", id);
-    }
+    if (!id) { return; }
+
+    this.shopId = id;
+    this.setUserPreferences("reaction", "activeShopId", id);
+
+    Meteor.call("shop/resetShopId");
   },
 
   /**

@@ -18,6 +18,19 @@ import * as Schemas from "/lib/collections/schemas";
 */
 Meteor.methods({
   /**
+   * @name shop/resetShopId
+   * @method
+   * @memberof Methods/Shop
+   * @summary a way for the client to notifiy the server that the shop has
+   *          changed. We could has provided #setShopId, however, the server
+   *          has all the information it needs to determine this on its own,
+   *          and allowing the client to set shopId could be a security risk
+   */
+  "shop/resetShopId": function () {
+    return Reaction.resetShopId();
+  },
+
+  /**
    * @name shop/createShop
    * @method
    * @memberof Methods/Shop
