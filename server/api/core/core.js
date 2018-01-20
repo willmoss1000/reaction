@@ -394,6 +394,9 @@ export default {
       limit: 1,
       fields: {
         _id: 1
+      },
+      orderby: {
+        merchantShops: -1 // give preference to PrimaryShop if multiple results
       }
     }).fetch()[0];
     return shop && shop._id;
