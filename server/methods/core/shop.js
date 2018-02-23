@@ -22,12 +22,18 @@ Meteor.methods({
    * @method
    * @memberof Methods/Shop
    * @param {String} shopAdminUserId - optionally create shop for provided userId
-   * @param {Object} shopData - optionally provide shop object to customize
+   * @param {Object} shopData - optionally provide a subset of shop data which will
+   *                 be merged with properties from the primary shop in order to create
+   *                 a document which meets the Shops schema requirements.
    * @return {String} return shopId
    */
   "shop/createShop"(shopAdminUserId, shopData) {
     check(shopAdminUserId, Match.Optional(String));
-    check(shopData, Match.Optional(Schemas.Shop));
+    // It is not necessary to test whether shopData is valid against the Shops schema
+    // here, as shopData can be a subset of data. Later, shopData is combined with a
+    // copy of the Primary Shop to fill in the gaps. It is at that point that we
+    // validate/`check` that the combined object is valid against the Shops schema.
+    check(shopData, Match.Maybe(Object));
 
     // Get the current marketplace settings
     const marketplace = Reaction.getMarketplaceSettings();
