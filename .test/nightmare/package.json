@@ -4,7 +4,7 @@
   "description": "Nightmare tests for Reaction.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --exit"
   },
   "author": "Reaction Commerce",
   "license": "GPL-3.0",
