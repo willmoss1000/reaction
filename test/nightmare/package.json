@@ -1,0 +1,21 @@
+{
+  "name": "reaction-nightmare",
+  "version": "1.0.0",
+  "description": "Nightmare tests for Reaction.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "Reaction Commerce",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "chai": "^3.5.0",
+    "co": "^4.6.0",
+    "express": "^4.13.4",
+    "mocha": "^5.0.1",
+    "mocha-generators": "^1.2.0",
+    "nightmare": "^2.5.0",
+    "serve-static": "^1.10.2",
+    "vo": "^3.0.4"
+  }
+}
