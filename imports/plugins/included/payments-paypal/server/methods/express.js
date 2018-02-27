@@ -1,4 +1,3 @@
-import moment from "moment";
 import _ from "lodash";
 import accounting from "accounting-js";
 import { HTTP } from "meteor/http";
@@ -7,6 +6,12 @@ import { check } from "meteor/check";
 import { PayPal } from "../../lib/api";
 import { Shops, Cart, Packages } from "/lib/collections";
 import { Reaction, Logger } from "/server/api";
+
+let moment;
+async function lazyLoadMoment() {
+  if (moment) return;
+  moment = await import("moment");
+}
 
 const nvpVersion = "52.0";
 
@@ -17,7 +22,7 @@ export const methods = {
    * @param  {String} cartId Reference to the Cart object to be processed
    * @return {String} PayPal Token
    */
-  "getExpressCheckoutToken": function (cartId) {
+  "getExpressCheckoutToken"(cartId) {
     check(cartId, String);
     this.unblock();
     const cart = Cart.findOne(cartId);
@@ -29,8 +34,8 @@ export const methods = {
       throw new Meteor.Error("invalid-parameter", "Bad shop ID");
     }
     const amount = Number(cart.getTotal());
-    const description = shop.name + " Ref: " + cartId;
-    const currency = shop.currency;
+    const description = `${shop.name} Ref: ${cartId}`;
+    const { currency } = shop;
     const options = PayPal.expressCheckoutAccountOptions();
     let response;
 
@@ -52,7 +57,7 @@ export const methods = {
           CURRENCYCODE: currency,
           METHOD: "SetExpressCheckout",
           INVNUM: cartId,
-          CUSTOM: cartId + "|" + amount + "|" + currency
+          CUSTOM: `${cartId}|${amount}|${currency}`
         }
       });
     } catch (error) {
@@ -63,7 +68,7 @@ export const methods = {
     }
     const parsedResponse = parseResponse(response);
     if (parsedResponse.ACK !== "Success") {
-      throw new Meteor.Error("ACK " + parsedResponse.ACK + ": " + parsedResponse.L_LONGMESSAGE0);
+      throw new Meteor.Error(`ACK ${parsedResponse.ACK}: ${parsedResponse.L_LONGMESSAGE0}`);
     }
     return parsedResponse.TOKEN;
   },
@@ -75,7 +80,7 @@ export const methods = {
    * @param  {String} payerId Reference to the payer
    * @return {Object} results from PayPal normalized
    */
-  "confirmPaymentAuthorization": function (cartId, token, payerId) {
+  "confirmPaymentAuthorization"(cartId, token, payerId) {
     check(cartId, String);
     check(token, String);
     check(payerId, String);
@@ -86,7 +91,7 @@ export const methods = {
     }
     const amount = Number(cart.getTotal());
     const shop = Shops.findOne(cart.shopId);
-    const currency = shop.currency;
+    const { currency } = shop;
     const options = PayPal.expressCheckoutAccountOptions();
     const captureAtAuth = getSetting(cart.shopId, "expressAuthAndCapture");
     let paymentAction;
@@ -120,10 +125,7 @@ export const methods = {
     const parsedResponse = parseResponse(response);
 
     if (parsedResponse.ACK !== "Success") {
-      throw new Meteor.Error("ACK " +
-        parsedResponse.ACK + ": " +
-        parsedResponse.L_LONGMESSAGE0 + ":" +
-        parsedResponse.L_ERRORCODE0);
+      throw new Meteor.Error(`ACK ${parsedResponse.ACK}: ${parsedResponse.L_LONGMESSAGE0}:${parsedResponse.L_ERRORCODE0}`);
     }
     return parsedResponse;
   },
@@ -132,7 +134,7 @@ export const methods = {
    * Return the settings for the PayPal Express payment Method
    * @return {Object} Express Checkout settings
    */
-  "getExpressCheckoutSettings": function () {
+  "getExpressCheckoutSettings"() {
     const settings = PayPal.expressCheckoutAccountOptions();
     const expressCheckoutSettings = {
       merchantId: settings.merchantId,
@@ -148,7 +150,7 @@ export const methods = {
    * @param  {Object} paymentMethod A PaymentMethod object
    * @return {Object} results from PayPal normalized
    */
-  "paypalexpress/payment/capture": function (paymentMethod) {
+  "paypalexpress/payment/capture"(paymentMethod) {
     check(paymentMethod, Reaction.Schemas.PaymentMethod);
     this.unblock();
     const options = PayPal.expressCheckoutAccountOptions();
@@ -202,14 +204,14 @@ export const methods = {
     const parsedResponse = parseResponse(response);
 
     if (parsedResponse.ACK !== "Success") {
-      throw new Meteor.Error("ACK " + parsedResponse.ACK + ": " + parsedResponse.L_LONGMESSAGE0);
+      throw new Meteor.Error(`ACK ${parsedResponse.ACK}: ${parsedResponse.L_LONGMESSAGE0}`);
     }
 
     const result = {
       saved: true,
       authorizationId: parsedResponse.AUTHORIZATIONID,
       transactionId: parsedResponse.TRANSACTIONID,
-      currencycode: currencycode,
+      currencycode,
       metadata: {},
       rawTransaction: parsedResponse
     };
@@ -224,15 +226,14 @@ export const methods = {
    * @param {Number} amount to be refunded
    * @return {Object} Transaction results from PayPal normalized
    */
-  "paypalexpress/refund/create": function (paymentMethod, amount) {
+  "paypalexpress/refund/create"(paymentMethod, amount) {
     check(paymentMethod, Reaction.Schemas.PaymentMethod);
     check(amount, Number);
     this.unblock();
 
     const options = PayPal.expressCheckoutAccountOptions();
     const previousTransaction = _.last(paymentMethod.transactions);
-    const transactionId = previousTransaction.transactionId;
-    const currencycode = previousTransaction.currencycode;
+    const { transactionId, currencycode } = previousTransaction;
 
     let response;
     try {
@@ -249,7 +250,7 @@ export const methods = {
           CURRENCYCODE: currencycode
         }
       });
-    }  catch (error) {
+    } catch (error) {
       Logger.debug(error, "Failed paypalexpress/refund/create");
       throw new Meteor.Error("refund-create-failed", error.message);
     }
@@ -261,7 +262,7 @@ export const methods = {
 
     const parsedResponse = parseResponse(response);
     if (parsedResponse.ACK !== "Success") {
-      throw new Meteor.Error("ACK " + parsedResponse.ACK + ": " + parsedResponse.L_LONGMESSAGE0);
+      throw new Meteor.Error(`ACK ${parsedResponse.ACK}: ${parsedResponse.L_LONGMESSAGE0}`);
     }
 
     const amountFormatted = {
@@ -273,7 +274,7 @@ export const methods = {
       saved: true,
       type: "refund",
       created: new Date(),
-      transactionId: transactionId,
+      transactionId,
       refundTransactionId: parsedResponse.REFUNDTRANSACTIONID,
       grossRefundAmount: parsedResponse.GROSSREFUNDAMT,
       netRefundAmount: parsedResponse.NETREFUNDAMT,
@@ -291,12 +292,12 @@ export const methods = {
    * @param  {Object} paymentMethod A PaymentMethod object
    * @return {array}  Refunds from PayPal query, normalized
    */
-  "paypalexpress/refund/list": function (paymentMethod) {
+  "paypalexpress/refund/list"(paymentMethod) {
     check(paymentMethod, Reaction.Schemas.PaymentMethod);
     this.unblock();
 
     const options = PayPal.expressCheckoutAccountOptions();
-    const transactionId = paymentMethod.transactionId;
+    const { transactionId } = paymentMethod;
     let response;
 
     try {
@@ -312,7 +313,7 @@ export const methods = {
           TRANSACTIONCLASS: "Refund"
         }
       });
-    }  catch (error) {
+    } catch (error) {
       throw new Meteor.Error("refund-list-failed", error.message);
     }
 
@@ -323,7 +324,7 @@ export const methods = {
     const parsedResponse = parseResponse(response);
 
     if (parsedResponse.ACK !== "Success") {
-      throw new Meteor.Error("ACK " + parsedResponse.ACK + ": " + parsedResponse.L_LONGMESSAGE0);
+      throw new Meteor.Error(`ACK ${parsedResponse.ACK}: ${parsedResponse.L_LONGMESSAGE0}`);
     }
     const result = parseRefundReponse(parsedResponse);
     return result;
@@ -335,9 +336,10 @@ export const methods = {
 function parseResponse(response) {
   const result = {};
   const pieces = response.content.split("&");
-  pieces.forEach(function (piece) {
+  pieces.forEach((piece) => {
     const subpieces = piece.split("=");
-    const decodedResult = result[subpieces[0]] = decodeURIComponent(subpieces[1]);
+    result[subpieces[0]] = decodeURIComponent(subpieces[1]);
+    const decodedResult = result[subpieces[0]];
     return decodedResult;
   });
   return result;
@@ -351,14 +353,16 @@ function parseResponse(response) {
 function parseRefundReponse(response) {
   const paypalArray = [];
 
-  for (let i = 0; i < 101; i++) {
-    const timeStampKey = "L_TIMESTAMP" + i;
+  Promise.await(lazyLoadMoment());
+
+  for (let i = 0; i < 101; i += 1) {
+    const timeStampKey = `L_TIMESTAMP${i}`;
     const timestamp = response[timeStampKey];
-    const typeKey = "L_TYPE" + i;
+    const typeKey = `L_TYPE${i}`;
     const transactionType = response[typeKey];
-    const amountKey = "L_AMT" + i;
+    const amountKey = `L_AMT${i}`;
     const amount = response[amountKey];
-    const currencyCodeKey = "L_CURRENCYCODE" + i;
+    const currencyCodeKey = `L_CURRENCYCODE${i}`;
     const currencyCode = response[currencyCodeKey];
 
     if (timestamp !== undefined && transactionType === "Refund") {
@@ -376,11 +380,11 @@ function parseRefundReponse(response) {
 }
 
 function getSetting(shopId, parameter) {
-  const settings = Packages.findOne({
+  const { settings } = Packages.findOne({
     name: "reaction-paypal",
-    shopId: shopId,
+    shopId,
     enabled: true
-  }).settings;
+  });
   return settings[parameter];
 }
 

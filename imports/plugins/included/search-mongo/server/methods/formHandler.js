@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { Meteor } from "meteor/meteor";
 import { check, Match } from "meteor/check";
-import { Job } from "meteor/vsivsi:job-collection";
+import { Job } from "/imports/plugins/core/job-collection/lib";
 import { Packages, Jobs } from "/lib/collections";
 import { CorePackageConfig } from "/lib/collections/schemas";
 import { Logger, Reaction } from "/server/api";
@@ -21,7 +21,7 @@ function weightsChanged(changedFields) {
 }
 
 Meteor.methods({
-  "search/updateSearchSettings": function (modifier, _id) {
+  "search/updateSearchSettings"(modifier, _id) {
     check(modifier, Match.Optional(CorePackageConfig));
     check(_id, String);
     const currentSettings = Packages.findOne(_id);

@@ -1,6 +1,7 @@
-import store from "amplify-store";
+import store from "store";
 import { Meteor } from "meteor/meteor";
 import { Tracker } from "meteor/tracker";
+import { Accounts as AccountsCollection } from "/lib/collections";
 import { Accounts } from "meteor/accounts-base";
 
 import { Reaction, Logger } from "/client/api";
@@ -12,12 +13,31 @@ const cookieName = "_RcFallbackLoginToken";
  *  Startup Reaction
  *  Init Reaction client
  */
-Meteor.startup(function () {
+Meteor.startup(() => {
   // init the core
   Reaction.init();
   // initialize anonymous guest users
-  return Tracker.autorun(function () {
+  return Tracker.autorun(() => {
     const userId = Meteor.userId();
+
+    // Load data from Accounts collection into the localStorage
+    Tracker.nonreactive(() => {
+      // Don't load the data from Accounts Collection again when something changes
+      // as we are already storing everything in the localStorage reactively
+      try {
+        const user = AccountsCollection.findOne(userId);
+        if (user && user.profile && user.profile.preferences) {
+          Object.keys(user.profile.preferences).forEach((packageName) => {
+            const packageSettings = user.profile.preferences[packageName];
+            Object.keys(packageSettings).forEach((preference) => {
+              Reaction.setUserPreferences(packageName, preference, packageSettings[preference]);
+            });
+          });
+        }
+      } catch (err) {
+        Logger.error("Problem in loading user preferences from Accounts collection");
+      }
+    });
 
     if (userId && !isLocalStorageAvailable() && !readCookie(cookieName)) {
       Logger.debug("No local storage available. About to set up fallback login " +
@@ -35,9 +55,9 @@ Meteor.startup(function () {
     // TODO: maybe `visibilityState` will be better here
     let loggingIn;
     let sessionId;
-    Tracker.nonreactive(function () {
+    Tracker.nonreactive(() => {
       loggingIn = Accounts.loggingIn();
-      sessionId = store("Reaction.session");
+      sessionId = store.get("Reaction.session");
     });
 
     if (!userId) {
@@ -66,9 +86,9 @@ function isLocalStorageAvailable() {
 }
 
 function readCookie(name) {
-  const nameEq = name + "=";
+  const nameEq = `${name}=`;
   const ca = document.cookie.split(";");
-  for (let i = 0; i < ca.length; i++) {
+  for (let i = 0; i < ca.length; i += 1) {
     let c = ca[i];
     while (c.charAt(0) === " ") c = c.substring(1, c.length);
     if (c.indexOf(nameEq) === 0) {
@@ -79,5 +99,5 @@ function readCookie(name) {
 }
 
 function createSessionCookie(name, value) {
-  document.cookie = name + "=" + value + "; path=/";
+  document.cookie = `${name}=${value}; path=/`;
 }
